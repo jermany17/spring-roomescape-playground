@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import roomescape.exception.NotFoundReservationException;
@@ -11,6 +13,7 @@ import roomescape.model.Reservation;
 import roomescape.model.ReservationRequest;
 
 import java.net.URI;
+import java.sql.PreparedStatement;
 import java.util.List;
 
 @Controller
@@ -47,12 +50,21 @@ public class ReservationController {
     @PostMapping("/reservations")
     public ResponseEntity<Reservation> addReservation(@RequestBody ReservationRequest request) {
         request.validate();
+
         Reservation newReservation = new Reservation(null, request.getName(), request.getDate(), request.getTime());
 
         String sql = "INSERT INTO reservation (name, date, time) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, newReservation.getName(), newReservation.getDate(), newReservation.getTime());
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        Long id = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] {"id"});
+            ps.setString(1, newReservation.getName());
+            ps.setString(2, newReservation.getDate());
+            ps.setString(3, newReservation.getTime());
+            return ps;
+        }, keyHolder);
+
+        Long id = keyHolder.getKey().longValue();
         newReservation.setId(id);
 
         return ResponseEntity.created(URI.create("/reservations/" + id)).body(newReservation);
