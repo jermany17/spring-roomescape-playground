@@ -25,6 +25,9 @@ public class Time {
     }
 
     public void setTime(String time) {
+        if (time == null || time.trim().isEmpty()) {
+            throw new IllegalArgumentException("시간 값이 비어 있습니다.");
+        }
         this.time = time;
     }
 }
